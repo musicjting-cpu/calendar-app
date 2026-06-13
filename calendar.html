@@ -4,7 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>月曆 - 115年8月~116年2月</title>
-<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
 </head>
 <body>
 <div id="app">
@@ -22,7 +26,7 @@
   <main class="app-main">
     <nav class="month-nav">
       <button id="prevBtn" class="btn btn-nav">◀</button>
-      <h2 id="monthTitle">2026年 8月</h2>
+      <h2 id="monthTitle">115年8月</h2>
       <button id="nextBtn" class="btn btn-nav">▶</button>
     </nav>
 
@@ -48,6 +52,6 @@
   </div>
 </div>
 
-<script src="/js/calendar.js"></script>
+<script src="js/calendar.js"></script>
 </body>
 </html>
