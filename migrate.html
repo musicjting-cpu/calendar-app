@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>資料匯入 - 月曆系統</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<style>
+.migrate-container { max-width: 600px; margin: 40px auto; padding: 20px; }
+.migrate-card { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+.migrate-card h2 { margin-bottom: 16px; }
+.migrate-card pre { background: #f8fafc; padding: 12px; border-radius: 8px; font-size: 13px; overflow-x: auto; }
+.log-area { background: #1e293b; color: #a5f3fc; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 13px; max-height: 300px; overflow-y: auto; margin: 16px 0; white-space: pre-wrap; }
+.status-bar { padding: 12px 16px; border-radius: 8px; margin: 12px 0; font-weight: 600; }
+.status-ok { background: #d1fae5; color: #065f46; }
+.status-err { background: #fce4ec; color: #b71c1c; }
+.status-info { background: #dbeafe; color: #1e40af; }
+.hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="migrate-container">
+  <div class="migrate-card">
+    <h2>📥 資料匯入工具</h2>
+    <p style="color:#64748b;margin-bottom:16px;">將舊系統的資料匯入 Firebase Firestore</p>
+
+    <div style="margin-bottom:16px;">
+      <p style="font-weight:600;margin-bottom:8px;">即將匯入以下資料：</p>
+      <pre id="dataPreview">載入中...</pre>
+    </div>
+
+    <div id="statusArea" class="log-area">尚未開始</div>
+
+    <div id="progressBar" style="height:4px;background:#e2e8f0;border-radius:2px;margin:12px 0;overflow:hidden;">
+      <div id="progressFill" style="height:100%;width:0%;background:#667eea;border-radius:2px;transition:width 0.3s;"></div>
+    </div>
+
+    <div id="actions">
+      <button id="startBtn" class="btn btn-primary btn-full" style="padding:12px!important;font-size:16px!important;">開始匯入</button>
+    </div>
+
+    <div id="resultArea" class="hidden"></div>
+
+    <p style="margin-top:16px;text-align:center;">
+      <a href="calendar.html" style="color:#667eea;text-decoration:none;">← 回到月曆</a>
+    </p>
+  </div>
+</div>
+
+<script>
+var oldData = {
+  "2026-08-03": [
+    { "id": "mqcztrod5927f457", "text": "Apple, Amber" },
+    { "id": "mqczuhxhfaeadae2", "text": "BA_22" },
+    { "id": "mqczv17v573170c2", "text": "BA_6" }
+  ]
+};
+
+document.getElementById('dataPreview').textContent = JSON.stringify(oldData, null, 2);
+
+function log(msg) {
+  var area = document.getElementById('statusArea');
+  area.textContent += msg + '\n';
+  area.scrollTop = area.scrollHeight;
+}
+
+function setProgress(pct) {
+  document.getElementById('progressFill').style.width = pct + '%';
+}
+
+function showResult(type, msg) {
+  var area = document.getElementById('resultArea');
+  area.className = 'status-bar status-' + type;
+  area.textContent = msg;
+  area.classList.remove('hidden');
+}
+
+firebase.auth().onAuthStateChanged(function(user) {
+  if (!user) {
+    log('❌ 未登入，請先登入再執行匯入');
+    document.getElementById('startBtn').disabled = true;
+    document.getElementById('startBtn').textContent = '請先登入';
+    return;
+  }
+  log('✅ 已登入：' + user.email);
+});
+
+document.getElementById('startBtn').addEventListener('click', async function() {
+  var btn = document.getElementById('startBtn');
+  btn.disabled = true;
+  btn.textContent = '匯入中...';
+  document.getElementById('resultArea').classList.add('hidden');
+
+  var dates = Object.keys(oldData);
+  var total = 0;
+  for (var d in oldData) total += oldData[d].length;
+  var done = 0;
+  var success = 0, fail = 0;
+
+  log('📦 開始匯入 ' + total + ' 筆資料...');
+
+  for (var i = 0; i < dates.length; i++) {
+    var date = dates[i];
+    var items = oldData[date];
+    log('📅 ' + date + ' (' + items.length + ' 筆)');
+
+    for (var j = 0; j < items.length; j++) {
+      try {
+        await firebase.firestore.addDoc(
+          firebase.firestore.collection(db, 'events'),
+          { date: date, text: items[j].text }
+        );
+        success++;
+        log('  ✅ ' + items[j].text);
+      } catch (e) {
+        fail++;
+        log('  ❌ ' + items[j].text + ' — ' + e.message);
+      }
+      done++;
+      setProgress(Math.round((done / total) * 100));
+    }
+  }
+
+  log('');
+  log('══════════════════════════');
+  log('✅ 成功：' + success + ' 筆');
+  log('❌ 失敗：' + fail + ' 筆');
+  log('══════════════════════════');
+
+  btn.textContent = '✓ 匯入完成';
+  showResult(success > 0 ? 'ok' : 'err',
+    '匯入完成：成功 ' + success + ' 筆' + (fail > 0 ? '，失敗 ' + fail + ' 筆' : ''));
+});
+</script>
+</body>
+</html>
