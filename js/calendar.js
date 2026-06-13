@@ -1,3 +1,9 @@
+(function() {
+if (!sessionStorage.getItem('calendar_logged_in')) {
+  window.location.href = 'login.html';
+  return;
+}
+
 var MIN_YEAR = 2026, MIN_MONTH = 7;
 var MAX_YEAR = 2027, MAX_MONTH = 1;
 
@@ -7,36 +13,32 @@ var currentModalDate = null;
 
 var monthNames = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
 var dayNames = ['日','一','二','三','四','五','六'];
+var STORAGE_KEY = 'calendar_app_events';
 
 function rocYear(y) { return y - 1911; }
 
-var calUser = null;
+function loadEvents() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
+  catch { return {}; }
+}
 
-firebase.auth().onAuthStateChanged(function(user) {
-  if (!user) { window.location.href = 'login.html'; return; }
-  calUser = user;
-  document.getElementById('headerUser').textContent = '\u{1F464} ' + user.email;
-  refreshView();
-});
+function saveEvents(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
 
-async function fetchEvents() {
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
+}
+
+function fetchEvents() {
   eventsData = {};
-  var monthStr = String(curMonth + 1).padStart(2, '0');
-  var start = curYear + '-' + monthStr + '-01';
-  var end = curYear + '-' + monthStr + '-31';
-  try {
-    var q = firebase.firestore.query(
-      firebase.firestore.collection(db, 'events'),
-      firebase.firestore.where('date', '>=', start),
-      firebase.firestore.where('date', '<=', end)
-    );
-    var snap = await firebase.firestore.getDocs(q);
-    snap.forEach(function(doc) {
-      var d = doc.data();
-      if (!eventsData[d.date]) eventsData[d.date] = [];
-      eventsData[d.date].push({ id: doc.id, text: d.text });
-    });
-  } catch (e) { console.error(e); }
+  var all = loadEvents();
+  var prefix = curYear + '-' + String(curMonth + 1).padStart(2, '0');
+  for (var date in all) {
+    if (date.startsWith(prefix)) {
+      eventsData[date] = all[date];
+    }
+  }
 }
 
 function renderCalendar() {
@@ -166,52 +168,63 @@ function renderModalEvents() {
   }
 }
 
-async function addEvent() {
+function addEvent() {
   var input = document.getElementById('newEventInput');
   var text = input.value.trim();
   if (!text) return alert('\u8ACB\u8F38\u5165\u4E8B\u9805\u5167\u5BB9');
-  try {
-    var docRef = await firebase.firestore.addDoc(
-      firebase.firestore.collection(db, 'events'),
-      { date: currentModalDate, text: text }
-    );
-    if (!eventsData[currentModalDate]) eventsData[currentModalDate] = [];
-    eventsData[currentModalDate].push({ id: docRef.id, text: text });
-    renderModalEvents();
-    renderCalendar();
-    input.value = '';
-  } catch (e) { alert('\u7121\u6CD5\u9023\u7DDA\u5230\u670D\u52D9\u5668'); console.error(e); }
+  var all = loadEvents();
+  if (!all[currentModalDate]) all[currentModalDate] = [];
+  var evt = { id: generateId(), text: text };
+  all[currentModalDate].push(evt);
+  saveEvents(all);
+  if (!eventsData[currentModalDate]) eventsData[currentModalDate] = [];
+  eventsData[currentModalDate].push(evt);
+  renderModalEvents();
+  renderCalendar();
+  input.value = '';
 }
 
-async function editEvent(id, text) {
-  try {
-    await firebase.firestore.updateDoc(
-      firebase.firestore.doc(db, 'events', id),
-      { text: text }
-    );
-    for (var date in eventsData) {
-      for (var i = 0; i < eventsData[date].length; i++) {
-        if (eventsData[date][i].id === id) {
-          eventsData[date][i].text = text;
-          break;
+function editEvent(id, text) {
+  var all = loadEvents();
+  for (var date in all) {
+    for (var i = 0; i < all[date].length; i++) {
+      if (all[date][i].id === id) {
+        all[date][i].text = text;
+        saveEvents(all);
+        if (eventsData[date]) {
+          for (var j = 0; j < eventsData[date].length; j++) {
+            if (eventsData[date][j].id === id) {
+              eventsData[date][j].text = text;
+              break;
+            }
+          }
         }
+        renderModalEvents();
+        renderCalendar();
+        return;
       }
     }
-    renderModalEvents();
-    renderCalendar();
-  } catch (e) { alert('\u7121\u6CD5\u4FEE\u6539'); console.error(e); }
+  }
 }
 
-async function deleteEvent(id) {
-  try {
-    await firebase.firestore.deleteDoc(firebase.firestore.doc(db, 'events', id));
-    for (var date in eventsData) {
-      eventsData[date] = eventsData[date].filter(function(e) { return e.id !== id; });
-      if (!eventsData[date].length) delete eventsData[date];
+function deleteEvent(id) {
+  var all = loadEvents();
+  for (var date in all) {
+    for (var i = 0; i < all[date].length; i++) {
+      if (all[date][i].id === id) {
+        all[date].splice(i, 1);
+        if (!all[date].length) delete all[date];
+        saveEvents(all);
+        if (eventsData[date]) {
+          eventsData[date] = eventsData[date].filter(function(e) { return e.id !== id; });
+          if (!eventsData[date].length) delete eventsData[date];
+        }
+        renderModalEvents();
+        renderCalendar();
+        return;
+      }
     }
-    renderModalEvents();
-    renderCalendar();
-  } catch (e) { alert('\u7121\u6CD5\u522A\u9664'); console.error(e); }
+  }
 }
 
 function prevMonth() {
@@ -241,14 +254,18 @@ function goToday() {
   refreshView();
 }
 
-async function refreshView() {
-  await fetchEvents();
+function refreshView() {
+  fetchEvents();
   renderCalendar();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+  if (!sessionStorage.getItem('calendar_logged_in')) {
+    window.location.href = 'login.html';
+    return;
+  }
   document.getElementById('logoutBtn').addEventListener('click', function() {
-    firebase.auth().signOut();
+    sessionStorage.removeItem('calendar_logged_in');
     window.location.href = 'login.html';
   });
   document.getElementById('prevBtn').addEventListener('click', prevMonth);
@@ -265,4 +282,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeModal();
   });
+  refreshView();
 });
+
+})();
