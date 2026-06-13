@@ -1,5 +1,5 @@
 const MIN_YEAR = 2026, MIN_MONTH = 7;
-const MAX_YEAR = 2026, MAX_MONTH = 11;
+const MAX_YEAR = 2027, MAX_MONTH = 1;
 
 let curYear = 2026, curMonth = 7;
 let eventsData = {};

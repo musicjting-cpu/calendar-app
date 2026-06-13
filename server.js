@@ -221,6 +221,6 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ 月曆系統已啟動：http://localhost:${PORT}`);
-  console.log(`📅 顯示範圍：115年8月 ~ 115年12月 (2026/08 ~ 2026/12)`);
+   console.log(`📅 顯示範圍：115年8月 ~ 116年2月 (2026/08 ~ 2027/02)`);
   console.log(`👤 預設帳號：admin / admin123`);
 });
