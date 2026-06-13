@@ -1,0 +1,9 @@
+{
+  "name": "calendar-app",
+  "version": "1.0.0",
+  "description": "需登入才可瀏覽的月曆系統 (115年8月-12月)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

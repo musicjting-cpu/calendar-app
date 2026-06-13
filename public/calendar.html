@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>月曆 - 115年8月~12月</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="app">
+  <header class="app-header">
+    <div class="header-left">
+      <h1>📅 月曆系統</h1>
+      <span class="header-user" id="headerUser"></span>
+    </div>
+    <div class="header-right">
+      <button id="todayBtn" class="btn btn-sm btn-outline">今天</button>
+      <button id="logoutBtn" class="btn btn-sm btn-outline">登出</button>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <nav class="month-nav">
+      <button id="prevBtn" class="btn btn-nav">◀</button>
+      <h2 id="monthTitle">2026年 8月</h2>
+      <button id="nextBtn" class="btn btn-nav">▶</button>
+    </nav>
+
+    <section class="calendar-container">
+      <div id="calendarGrid" class="calendar-grid"></div>
+    </section>
+  </main>
+</div>
+
+<div id="eventModal" class="modal-overlay" style="display:none">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="modalDate"></h3>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="eventList" class="event-list-modal"></div>
+      <div class="add-event-form">
+        <input type="text" id="newEventInput" placeholder="輸入事項內容..." maxlength="100">
+        <button id="addEventBtn" class="btn btn-primary">新增</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/calendar.js"></script>
+</body>
+</html>
