@@ -15,7 +15,7 @@ function rocYear(y) { return y - 1911; }
 firebase.auth().onAuthStateChanged(function(user) {
   if (!user) { window.location.href = 'login.html'; return; }
   currentUser = user;
-  document.getElementById('headerUser').textContent = '\u{1F464} ' + user.email;
+  document.getElementById('headerUser').textContent = user.email;
   if (document.getElementById('calendarGrid').children.length === 0) {
     refreshView();
   }
@@ -27,13 +27,10 @@ async function fetchEvents() {
   var start = curYear + '-' + monthStr + '-01';
   var end = curYear + '-' + monthStr + '-31';
   try {
-    var snap = await firebase.firestore.getDocs(
-      firebase.firestore.query(
-        firebase.firestore.collection(db, 'events'),
-        firebase.firestore.where('date', '>=', start),
-        firebase.firestore.where('date', '<=', end)
-      )
-    );
+    var snap = await db.collection('events')
+      .where('date', '>=', start)
+      .where('date', '<=', end)
+      .get();
     snap.forEach(function(doc) {
       var d = doc.data();
       if (!eventsData[d.date]) eventsData[d.date] = [];
@@ -121,7 +118,7 @@ function renderModalEvents() {
   var container = document.getElementById('eventList');
   var evts = eventsData[currentModalDate] || [];
   if (!evts.length) {
-    container.innerHTML = '<div class="no-events">尚無事項，請新增</div>';
+    container.innerHTML = '<div class="no-events">\u5C1A\u7121\u4E8B\u9805\uFF0C\u8ACB\u65B0\u589E</div>';
     return;
   }
   container.innerHTML = '';
@@ -174,10 +171,10 @@ async function addEvent() {
   var text = input.value.trim();
   if (!text) return alert('\u8ACB\u8F38\u5165\u4E8B\u9805\u5167\u5BB9');
   try {
-    var docRef = await firebase.firestore.addDoc(
-      firebase.firestore.collection(db, 'events'),
-      { date: currentModalDate, text: text }
-    );
+    var docRef = await db.collection('events').add({
+      date: currentModalDate,
+      text: text
+    });
     if (!eventsData[currentModalDate]) eventsData[currentModalDate] = [];
     eventsData[currentModalDate].push({ id: docRef.id, text: text });
     renderModalEvents();
@@ -188,10 +185,7 @@ async function addEvent() {
 
 async function editEvent(id, text) {
   try {
-    await firebase.firestore.updateDoc(
-      firebase.firestore.doc(db, 'events', id),
-      { text: text }
-    );
+    await db.collection('events').doc(id).update({ text: text });
     for (var date in eventsData) {
       for (var i = 0; i < eventsData[date].length; i++) {
         if (eventsData[date][i].id === id) {
@@ -207,7 +201,7 @@ async function editEvent(id, text) {
 
 async function deleteEvent(id) {
   try {
-    await firebase.firestore.deleteDoc(firebase.firestore.doc(db, 'events', id));
+    await db.collection('events').doc(id).delete();
     for (var date in eventsData) {
       for (var i = 0; i < eventsData[date].length; i++) {
         if (eventsData[date][i].id === id) {
@@ -255,6 +249,10 @@ async function refreshView() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+  if (!firebase.auth().currentUser) {
+    window.location.href = 'login.html';
+    return;
+  }
   document.getElementById('logoutBtn').addEventListener('click', function() {
     firebase.auth().signOut();
     window.location.href = 'login.html';
