@@ -249,13 +249,8 @@ async function refreshView() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  if (!firebase.auth().currentUser) {
-    window.location.href = 'login.html';
-    return;
-  }
   document.getElementById('logoutBtn').addEventListener('click', function() {
     firebase.auth().signOut();
-    window.location.href = 'login.html';
   });
   document.getElementById('prevBtn').addEventListener('click', prevMonth);
   document.getElementById('nextBtn').addEventListener('click', nextMonth);
@@ -271,7 +266,6 @@ document.addEventListener('DOMContentLoaded', function() {
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeModal();
   });
-  if (currentUser) refreshView();
 });
 
 })();
