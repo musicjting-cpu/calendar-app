@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>登入 - 月曆系統</title>
 <link rel="stylesheet" href="css/style.css">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
 </head>
 <body class="login-page">
 <div class="login-container">
@@ -12,85 +16,74 @@
     <div class="login-icon">📅</div>
     <h1>月曆系統</h1>
     <p class="login-subtitle">115年8月 ~ 116年2月</p>
-
-    <div id="setupArea" class="hidden">
-      <p style="color:#64748b;margin-bottom:16px;">首次使用，請設定登入密碼：</p>
-      <form id="setupForm">
-        <div class="form-group">
-          <label for="setupPassword">設定密碼</label>
-          <input type="password" id="setupPassword" placeholder="請輸入密碼 (至少 4 碼)" required autocomplete="new-password">
-        </div>
-        <div class="form-group">
-          <label for="setupPassword2">確認密碼</label>
-          <input type="password" id="setupPassword2" placeholder="再次輸入密碼" required autocomplete="new-password">
-        </div>
-        <div id="setupError" class="login-error"></div>
-        <button type="submit" class="btn btn-primary btn-full">設定並登入</button>
-      </form>
-    </div>
-
-    <div id="loginArea">
-      <form id="loginForm">
-        <div class="form-group">
-          <label for="password">密碼</label>
-          <input type="password" id="password" placeholder="請輸入密碼" required autocomplete="current-password">
-        </div>
-        <div id="loginError" class="login-error"></div>
-        <button type="submit" class="btn btn-primary btn-full">登入</button>
-      </form>
-    </div>
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" placeholder="請輸入 Email" required autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label for="password">密碼</label>
+        <input type="password" id="password" placeholder="請輸入密碼" required autocomplete="current-password">
+      </div>
+      <div id="loginError" class="login-error"></div>
+      <button type="submit" class="btn btn-primary btn-full">登入</button>
+    </form>
+    <p style="margin-top:16px;font-size:13px;color:#94a3b8;">
+      還沒有帳號？<a href="#" id="goRegister" style="color:#667eea;text-decoration:none;">註冊</a>
+    </p>
   </div>
 </div>
 <script>
 (function() {
-  var STORAGE_KEY = 'calendar_app_settings';
-  var settings = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+  var loginForm = document.getElementById('loginForm');
+  var emailInput = document.getElementById('email');
+  var passwordInput = document.getElementById('password');
+  var errorEl = document.getElementById('loginError');
+  var goRegister = document.getElementById('goRegister');
 
-  function hash(str) {
-    var h = 0;
-    for (var i = 0; i < str.length; i++) {
-      h = ((h << 5) - h) + str.charCodeAt(i);
-      h |= 0;
-    }
-    return 'h' + Math.abs(h).toString(36);
+  function setLoading(loading) {
+    var btn = loginForm.querySelector('button[type="submit"]');
+    btn.disabled = loading;
+    btn.textContent = loading ? '處理中...' : '登入';
   }
 
-  function show(id) { document.getElementById(id).classList.remove('hidden'); }
-  function hide(id) { document.getElementById(id).classList.add('hidden'); }
-
-  if (!settings.passwordHash) {
-    hide('loginArea');
-    show('setupArea');
-  }
-
-  document.getElementById('setupForm').addEventListener('submit', function(e) {
+  loginForm.addEventListener('submit', function(e) {
     e.preventDefault();
-    var p1 = document.getElementById('setupPassword').value;
-    var p2 = document.getElementById('setupPassword2').value;
-    var err = document.getElementById('setupError');
-    if (p1.length < 4) { err.textContent = '密碼至少 4 碼'; return; }
-    if (p1 !== p2) { err.textContent = '兩次密碼不符'; return; }
-    settings.passwordHash = hash(p1);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    sessionStorage.setItem('calendar_logged_in', '1');
-    window.location.href = 'calendar.html';
+    errorEl.textContent = '';
+    setLoading(true);
+    firebase.auth().signInWithEmailAndPassword(emailInput.value, passwordInput.value)
+      .then(function() { window.location.href = 'calendar.html'; })
+      .catch(function(err) {
+        if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+          errorEl.textContent = '帳號或密碼錯誤';
+        } else {
+          errorEl.textContent = err.message;
+        }
+        setLoading(false);
+      });
   });
 
-  document.getElementById('loginForm').addEventListener('submit', function(e) {
+  goRegister.addEventListener('click', function(e) {
     e.preventDefault();
-    var pwd = document.getElementById('password').value;
-    var err = document.getElementById('loginError');
-    if (hash(pwd) === settings.passwordHash) {
-      sessionStorage.setItem('calendar_logged_in', '1');
-      window.location.href = 'calendar.html';
-    } else {
-      err.textContent = '密碼錯誤';
-    }
+    var email = emailInput.value.trim();
+    var password = passwordInput.value;
+    if (!email || !password) { errorEl.textContent = '請先填寫 Email 和密碼'; return; }
+    if (password.length < 6) { errorEl.textContent = '密碼至少 6 碼'; return; }
+    setLoading(true);
+    firebase.auth().createUserWithEmailAndPassword(email, password)
+      .then(function() {
+        window.location.href = 'calendar.html';
+      })
+      .catch(function(err) {
+        if (err.code === 'auth/email-already-in-use') {
+          errorEl.textContent = '此 Email 已註冊，請直接登入';
+        } else {
+          errorEl.textContent = err.message;
+        }
+        setLoading(false);
+      });
   });
 })();
 </script>
-<style>
-.hidden { display: none !important; }
-</style>
 </body>
 </html>

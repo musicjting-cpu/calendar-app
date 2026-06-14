@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>資料匯入 - 月曆系統</title>
 <link rel="stylesheet" href="css/style.css">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
 <style>
 .migrate-container { max-width: 600px; margin: 40px auto; padding: 20px; }
 .migrate-card { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
@@ -14,6 +18,7 @@
 .status-bar { padding: 12px 16px; border-radius: 8px; margin: 12px 0; font-weight: 600; }
 .status-ok { background: #d1fae5; color: #065f46; }
 .status-err { background: #fce4ec; color: #b71c1c; }
+.status-info { background: #dbeafe; color: #1e40af; }
 .hidden { display: none; }
 </style>
 </head>
@@ -21,13 +26,14 @@
 <div class="migrate-container">
   <div class="migrate-card">
     <h2>📥 資料匯入工具</h2>
-    <p style="color:#64748b;margin-bottom:16px;">將舊資料匯入 localStorage</p>
+    <p style="color:#64748b;margin-bottom:16px;">將舊資料匯入 Firebase Firestore（所有裝置同步）</p>
 
     <div style="margin-bottom:16px;">
       <p style="font-weight:600;margin-bottom:8px;">即將匯入以下資料：</p>
       <pre id="dataPreview">載入中...</pre>
     </div>
 
+    <div id="loginNotice" class="status-bar status-info hidden">請先登入再執行匯入</div>
     <div id="statusArea" class="log-area">尚未開始</div>
 
     <div id="progressBar" style="height:4px;background:#e2e8f0;border-radius:2px;margin:12px 0;overflow:hidden;">
@@ -35,7 +41,7 @@
     </div>
 
     <div id="actions">
-      <button id="startBtn" class="btn btn-primary btn-full" style="padding:12px!important;font-size:16px!important;">開始匯入</button>
+      <button id="startBtn" class="btn btn-primary btn-full" style="padding:12px!important;font-size:16px!important;" disabled>請先登入</button>
     </div>
 
     <div id="resultArea" class="hidden"></div>
@@ -47,7 +53,6 @@
 </div>
 
 <script>
-var STORAGE_KEY = 'calendar_app_events';
 var oldData = {
   "2026-08-03": [
     { "id": "mqcztrod5927f457", "text": "Apple, Amber" },
@@ -75,29 +80,35 @@ function showResult(type, msg) {
   area.classList.remove('hidden');
 }
 
-function loadEvents() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
-  catch { return {}; }
-}
+firebase.auth().onAuthStateChanged(function(user) {
+  var btn = document.getElementById('startBtn');
+  var notice = document.getElementById('loginNotice');
+  if (!user) {
+    btn.disabled = true;
+    btn.textContent = '請先登入';
+    notice.classList.remove('hidden');
+    notice.textContent = '❌ 未登入，請先到登入頁面登入';
+    return;
+  }
+  btn.disabled = false;
+  btn.textContent = '開始匯入';
+  notice.classList.add('hidden');
+  log('✅ 已登入：' + user.email);
+});
 
-function saveEvents(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
-
-document.getElementById('startBtn').addEventListener('click', function() {
+document.getElementById('startBtn').addEventListener('click', async function() {
   var btn = document.getElementById('startBtn');
   btn.disabled = true;
   btn.textContent = '匯入中...';
   document.getElementById('resultArea').classList.add('hidden');
 
-  var existing = loadEvents();
   var dates = Object.keys(oldData);
   var total = 0;
   for (var d in oldData) total += oldData[d].length;
   var done = 0;
-  var imported = 0, skipped = 0;
+  var success = 0, fail = 0;
 
-  log('📦 開始匯入 ' + total + ' 筆資料...');
+  log('📦 開始匯入 ' + total + ' 筆資料到 Firestore...');
 
   for (var i = 0; i < dates.length; i++) {
     var date = dates[i];
@@ -105,27 +116,31 @@ document.getElementById('startBtn').addEventListener('click', function() {
     log('📅 ' + date + ' (' + items.length + ' 筆)');
 
     for (var j = 0; j < items.length; j++) {
-      var item = items[j];
-      if (existing[date]) {
-        existing[date].push({ id: item.id || generateId(), text: item.text });
-      } else {
-        existing[date] = [{ id: item.id || generateId(), text: item.text }];
+      try {
+        await firebase.firestore.addDoc(
+          firebase.firestore.collection(db, 'events'),
+          { date: date, text: items[j].text }
+        );
+        success++;
+        log('  ✅ ' + items[j].text);
+      } catch (e) {
+        fail++;
+        log('  ❌ ' + items[j].text + ' — ' + e.message);
       }
-      imported++;
-      log('  ✅ ' + item.text);
       done++;
       setProgress(Math.round((done / total) * 100));
     }
   }
 
-  saveEvents(existing);
   log('');
   log('══════════════════════════');
-  log('✅ 匯入完成：' + imported + ' 筆');
+  log('✅ 成功：' + success + ' 筆');
+  if (fail > 0) log('❌ 失敗：' + fail + ' 筆');
   log('══════════════════════════');
 
   btn.textContent = '✓ 匯入完成';
-  showResult('ok', '匯入完成：共 ' + imported + ' 筆資料');
+  showResult(success > 0 ? 'ok' : 'err',
+    '匯入完成：成功 ' + success + ' 筆' + (fail > 0 ? '，失敗 ' + fail + ' 筆' : ''));
 });
 </script>
 </body>
