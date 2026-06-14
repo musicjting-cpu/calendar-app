@@ -29,12 +29,15 @@
       <button type="submit" class="btn btn-primary btn-full">登入</button>
     </form>
     <p style="margin-top:16px;font-size:13px;color:#94a3b8;">
-      還沒有帳號？<a href="#" id="goRegister" style="color:#667eea;text-decoration:none;">註冊</a>
+      帳號由管理者建立
     </p>
   </div>
 </div>
 <script>
 (function() {
+  var loginAttempts = 0;
+  var lockoutTime = 0;
+
   firebase.auth().onAuthStateChanged(function(user) {
     if (user) window.location.replace('calendar.html');
   });
@@ -43,7 +46,6 @@
   var emailInput = document.getElementById('email');
   var passwordInput = document.getElementById('password');
   var errorEl = document.getElementById('loginError');
-  var goRegister = document.getElementById('goRegister');
 
   function setLoading(loading) {
     var btn = loginForm.querySelector('button[type="submit"]');
@@ -54,31 +56,25 @@
   loginForm.addEventListener('submit', function(e) {
     e.preventDefault();
     errorEl.textContent = '';
+
+    var now = Date.now();
+    if (now < lockoutTime) {
+      var sec = Math.ceil((lockoutTime - now) / 1000);
+      errorEl.textContent = '登入嘗試過多，請 ' + sec + ' 秒後再試';
+      return;
+    }
+
     setLoading(true);
     firebase.auth().signInWithEmailAndPassword(emailInput.value, passwordInput.value)
       .then(function() { window.location.href = 'calendar.html'; })
       .catch(function(err) {
-        if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-          errorEl.textContent = '帳號或密碼錯誤';
-        } else {
-          errorEl.textContent = err.message;
-        }
-        setLoading(false);
-      });
-  });
-
-  goRegister.addEventListener('click', function(e) {
-    e.preventDefault();
-    var email = emailInput.value.trim();
-    var password = passwordInput.value;
-    if (!email || !password) { errorEl.textContent = '請先填寫 Email 和密碼'; return; }
-    if (password.length < 6) { errorEl.textContent = '密碼至少 6 碼'; return; }
-    setLoading(true);
-    firebase.auth().createUserWithEmailAndPassword(email, password)
-      .then(function() { window.location.href = 'calendar.html'; })
-      .catch(function(err) {
-        if (err.code === 'auth/email-already-in-use') {
-          errorEl.textContent = '此 Email 已註冊，請直接登入';
+        loginAttempts++;
+        if (loginAttempts >= 5) {
+          lockoutTime = Date.now() + 60000;
+          loginAttempts = 0;
+          errorEl.textContent = '登入嘗試過多，請 60 秒後再試';
+        } else if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+          errorEl.textContent = '帳號或密碼錯誤（剩餘 ' + (5 - loginAttempts) + ' 次機會）';
         } else {
           errorEl.textContent = err.message;
         }

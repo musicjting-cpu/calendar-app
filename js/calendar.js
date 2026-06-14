@@ -6,11 +6,28 @@ var curYear = 2026, curMonth = 7;
 var eventsData = {};
 var currentModalDate = null;
 var currentUser = null;
+var lastActivity = Date.now();
+var SESSION_TIMEOUT = 30 * 60 * 1000;
 
 var monthNames = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
 var dayNames = ['日','一','二','三','四','五','六'];
 
 function rocYear(y) { return y - 1911; }
+
+function resetActivity() { lastActivity = Date.now(); }
+
+function checkSession() {
+  if (Date.now() - lastActivity > SESSION_TIMEOUT) {
+    firebase.auth().signOut();
+    window.location.href = 'login.html';
+  }
+}
+
+['click','keydown','mousemove','touchstart'].forEach(function(evt) {
+  document.addEventListener(evt, resetActivity, { passive: true });
+});
+
+setInterval(checkSession, 60000);
 
 firebase.auth().onAuthStateChanged(function(user) {
   if (!user) { window.location.href = 'login.html'; return; }
