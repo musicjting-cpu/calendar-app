@@ -147,9 +147,12 @@
     }
     btn.disabled = false;
     log('✅ 已登入：' + user.email);
+    doImport();
   });
 
-  document.getElementById('startBtn').addEventListener('click', async function() {
+  document.getElementById('startBtn').addEventListener('click', doImport);
+
+  async function doImport() {
     var btn = document.getElementById('startBtn');
     btn.disabled = true;
     btn.textContent = '匯入中...';
@@ -188,7 +191,7 @@
     log('══════════════════════════');
     btn.textContent = '✓ 匯入完成';
     showResult('ok', '匯入完成：成功 ' + success + ' 筆' + (fail > 0 ? '，失敗 ' + fail + ' 筆' : ''));
-  });
+  }
 })();
 </script>
 </body>
