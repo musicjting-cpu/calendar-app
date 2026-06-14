@@ -1,14 +1,11 @@
-//
-// 📌 請將下面的值換成你的 Firebase 專案設定
-// 到 https://console.firebase.google.com → 專案設定 → 一般 → 你的應用程式 → 網頁應用程式
-//
 const firebaseConfig = {
-  apiKey: "AIzaSyA0...",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abc123"
+  apiKey: "AIzaSyC5CjcxYFu2dpPMA_heHvjXLW3wDyShNa0",
+  authDomain: "new-student-calendar.firebaseapp.com",
+  projectId: "new-student-calendar",
+  storageBucket: "new-student-calendar.firebasestorage.app",
+  messagingSenderId: "689906547166",
+  appId: "1:689906547166:web:4e0d9c666bceeecd8e054f",
+  measurementId: "G-RFGZPQB2V3"
 };
 
 firebase.initializeApp(firebaseConfig);
