@@ -1,5 +1,5 @@
 (function() {
-var MIN_YEAR = 2026, MIN_MONTH = 7;
+var MIN_YEAR = 2026, MIN_MONTH = 6;
 var MAX_YEAR = 2027, MAX_MONTH = 1;
 
 var curYear = 2026, curMonth = 7;
