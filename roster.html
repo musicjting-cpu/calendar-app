@@ -31,6 +31,8 @@
 .roster-empty { text-align: center; padding: 48px 24px; color: #94a3b8; font-size: 15px; }
 .btn-delete-row { background: none; border: none; color: #dc2626; cursor: pointer; font-size: 18px; padding: 4px 8px; border-radius: 4px; }
 .btn-delete-row:hover { background: #fee2e2; }
+.btn-insert-row { background: none; border: none; color: #16a34a; cursor: pointer; font-size: 18px; font-weight: 700; padding: 2px 6px; border-radius: 4px; line-height: 1; }
+.btn-insert-row:hover { background: #dcfce7; }
 @media (max-width: 768px) {
   .roster-table { font-size: 12px; }
   .roster-table th, .roster-table td { padding: 6px 4px; }
@@ -51,6 +53,7 @@
     <table class="roster-table" id="rosterTable">
       <thead>
         <tr>
+          <th style="width:30px;"></th>
           <th>入園<br>順位</th>
           <th>學號_<br>姓名</th>
           <th>入園日期</th>
@@ -68,7 +71,7 @@
         </tr>
       </thead>
       <tbody id="rosterBody">
-        <tr><td colspan="14" class="roster-empty">載入中...</td></tr>
+        <tr><td colspan="15" class="roster-empty">載入中...</td></tr>
       </tbody>
     </table>
   </div>

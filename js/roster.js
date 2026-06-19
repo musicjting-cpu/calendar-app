@@ -1,20 +1,32 @@
 (function() {
   var EDITABLE_COLS = ['nameCol','dateCol','app','macall','basicInfo','emergencyContact','insurance','healthRecord','infectionNotice','contract','subsidy','notes'];
-  var COL_HEADERS = ['學號_姓名','入園日期','APP','MA/MA/CALL','基本資料','緊急聯絡人鍵檔','團保回條','健康師檢紀錄卡','感控通知單','契約*2','補助','備註'];
   var allStudents = [];
   var rosterStatus = {};
   var saveTimer = null;
+  var deletedStack = [];
+  var UNDO_TIMEOUT = 10000;
 
   firebase.auth().onAuthStateChanged(function(user) {
     if (!user) { window.location.href = 'login.html'; return; }
     loadAll();
   });
 
-  function showToast(msg) {
+  function showToast(msg, undoCallback) {
     var t = document.getElementById('saveToast');
-    t.textContent = msg || '已儲存';
+    t.innerHTML = '';
+    var span = document.createElement('span');
+    span.textContent = msg;
+    t.appendChild(span);
+    if (undoCallback) {
+      var btn = document.createElement('button');
+      btn.textContent = '復原';
+      btn.style.cssText = 'margin-left:12px;background:white;color:#16a34a;border:none;padding:4px 12px;border-radius:6px;font-weight:700;cursor:pointer;';
+      btn.addEventListener('click', function() { undoCallback(); t.classList.remove('show'); });
+      t.appendChild(btn);
+    }
     t.classList.add('show');
-    setTimeout(function() { t.classList.remove('show'); }, 1500);
+    clearTimeout(t._hideTimer);
+    t._hideTimer = setTimeout(function() { t.classList.remove('show'); }, undoCallback ? UNDO_TIMEOUT : 1500);
   }
 
   async function loadAll() {
@@ -106,7 +118,7 @@
   function renderTable() {
     var tbody = document.getElementById('rosterBody');
     if (!allStudents.length) {
-      tbody.innerHTML = '<tr><td colspan="14" class="roster-empty">目前沒有新生入園資料，請點「+ 新增學生」</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="15" class="roster-empty">目前沒有新生入園資料，請點「+ 新增學生」</td></tr>';
       return;
     }
     tbody.innerHTML = '';
@@ -122,6 +134,18 @@
   function createRow(index, student, saved, docId) {
     var tr = document.createElement('tr');
     tr.dataset.docid = docId;
+
+    var tdInsert = document.createElement('td');
+    tdInsert.style.cssText = 'padding:2px;width:30px;';
+    var insertBtn = document.createElement('button');
+    insertBtn.className = 'btn-insert-row';
+    insertBtn.innerHTML = '&#43;';
+    insertBtn.title = '在此列下方插入新列';
+    insertBtn.addEventListener('click', (function(idx) {
+      return function() { insertRowAfter(idx); };
+    })(index));
+    tdInsert.appendChild(insertBtn);
+    tr.appendChild(tdInsert);
 
     var tdOrder = document.createElement('td');
     tdOrder.className = 'col-order';
@@ -161,7 +185,7 @@
     delBtn.innerHTML = '&#10005;';
     delBtn.title = '刪除此列';
     delBtn.addEventListener('click', (function(did, nm) {
-      return function() { deleteRow(did, nm); };
+      return function() { confirmDelete(did, nm); };
     })(docId, student.group + '_' + student.studentId + student.name));
     tdDel.appendChild(delBtn);
     tr.appendChild(tdDel);
@@ -217,14 +241,52 @@
     saveTimer = setTimeout(function() { saveAll(); }, 800);
   }
 
+  function confirmDelete(docId, name) {
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:2000;';
+
+    var card = document.createElement('div');
+    card.style.cssText = 'background:white;border-radius:16px;padding:28px 24px;width:90%;max-width:360px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.2);';
+
+    card.innerHTML =
+      '<div style="font-size:36px;margin-bottom:12px;">⚠️</div>' +
+      '<h3 style="font-size:18px;font-weight:700;color:#1e293b;margin-bottom:8px;">確認刪除</h3>' +
+      '<p style="color:#64748b;font-size:14px;margin-bottom:20px;">確定要刪除此列？<br><strong style="color:#1e293b;">' + name + '</strong><br><br>刪除後可點「復原」還原</p>';
+
+    var btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:10px;justify-content:center;';
+
+    var cancelBtn = document.createElement('button');
+    cancelBtn.textContent = '取消';
+    cancelBtn.style.cssText = 'padding:10px 24px;border:2px solid #e2e8f0;border-radius:8px;background:white;color:#475569;font-weight:600;cursor:pointer;font-size:14px;';
+    cancelBtn.addEventListener('click', function() { document.body.removeChild(overlay); });
+
+    var delBtn = document.createElement('button');
+    delBtn.textContent = '確定刪除';
+    delBtn.style.cssText = 'padding:10px 24px;border:none;border-radius:8px;background:#dc2626;color:white;font-weight:600;cursor:pointer;font-size:14px;';
+    delBtn.addEventListener('click', function() {
+      document.body.removeChild(overlay);
+      deleteRow(docId, name);
+    });
+
+    btnRow.appendChild(cancelBtn);
+    btnRow.appendChild(delBtn);
+    card.appendChild(btnRow);
+    overlay.appendChild(card);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) document.body.removeChild(overlay); });
+    document.body.appendChild(overlay);
+  }
+
   async function deleteRow(docId, name) {
-    if (!confirm('確定刪除此列「' + name + '」？')) return;
-
     var tr = document.querySelector('tr[data-docid="' + docId + '"]');
-    if (tr) tr.remove();
-
     var idx = allStudents.findIndex(function(s) { return makeDocId(s) === docId; });
+    var student = idx >= 0 ? Object.assign({}, allStudents[idx]) : null;
+    var savedData = rosterStatus[docId] ? Object.assign({}, rosterStatus[docId]) : null;
+    var insertIndex = idx >= 0 ? idx : -1;
+
+    if (tr) tr.remove();
     if (idx >= 0) allStudents.splice(idx, 1);
+    var removedStatus = rosterStatus[docId];
     delete rosterStatus[docId];
 
     try {
@@ -232,7 +294,58 @@
     } catch(e) { console.error(e); }
 
     renumberRows();
-    showToast('已刪除');
+    renderTable();
+
+    deletedStack.push({ docId: docId, student: student, savedData: savedData, removedStatus: removedStatus, insertIndex: insertIndex });
+
+    showToast('已刪除「' + name + '」', function() { undoDelete(); });
+  }
+
+  async function undoDelete() {
+    if (!deletedStack.length) return;
+    var last = deletedStack.pop();
+
+    if (last.student) {
+      allStudents.splice(last.insertIndex, 0, last.student);
+    }
+    if (last.removedStatus) {
+      rosterStatus[last.docId] = last.removedStatus;
+    } else if (last.savedData) {
+      rosterStatus[last.docId] = last.savedData;
+    }
+
+    renderTable();
+
+    if (last.removedStatus || last.savedData) {
+      try {
+        var data = last.removedStatus || last.savedData;
+        await db.collection('roster').doc(last.docId).set(data, { merge: true });
+      } catch(e) { console.error(e); }
+    }
+
+    showToast('已復原');
+  }
+
+  function insertRowAfter(index) {
+    var newStudent = {
+      id: 'new_' + Date.now(),
+      date: '2026-08-01',
+      group: 'BB',
+      studentId: '',
+      name: ''
+    };
+    allStudents.splice(index + 1, 0, newStudent);
+    var docId = 'new_' + Date.now();
+    rosterStatus[docId] = { group: 'BB', studentId: '', name: '', date: '2026-08-01' };
+
+    renderTable();
+
+    var rows = document.querySelectorAll('#rosterBody tr');
+    var newRow = rows[index + 1];
+    if (newRow) {
+      var nameCell = newRow.querySelector('[data-field="nameCol"]');
+      if (nameCell) nameCell.focus();
+    }
   }
 
   function renumberRows() {
@@ -255,15 +368,14 @@
     var docId = 'new_' + Date.now();
     rosterStatus[docId] = { group: 'BB', studentId: '', name: '', date: '2026-08-01' };
 
-    var tbody = document.getElementById('rosterBody');
-    if (tbody.querySelector('.roster-empty')) tbody.innerHTML = '';
+    renderTable();
 
-    var tr = createRow(allStudents.length - 1, newStudent, rosterStatus[docId], docId);
-    tbody.appendChild(tr);
-
-    var nameCell = tr.querySelector('[data-field="nameCol"]');
-    if (nameCell) { nameCell.focus(); }
-    renumberRows();
+    var rows = document.querySelectorAll('#rosterBody tr');
+    var newRow = rows[rows.length - 1];
+    if (newRow) {
+      var nameCell = newRow.querySelector('[data-field="nameCol"]');
+      if (nameCell) nameCell.focus();
+    }
   });
 
   async function saveAll() {
