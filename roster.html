@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新生需繳回文件核對表 - 媽咪新生入園月曆</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<style>
+.roster-container { max-width: 100%; margin: 0 auto; padding: 20px; }
+.roster-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.roster-header h1 { font-size: 20px; font-weight: 700; color: #1e293b; }
+.roster-table-wrap { background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); overflow-x: auto; }
+.roster-table { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
+.roster-table th { background: #f8fafc; padding: 10px 8px; text-align: center; font-weight: 700; color: #475569; border-bottom: 2px solid #e2e8f0; border-right: 1px solid #e2e8f0; }
+.roster-table th:last-child { border-right: none; }
+.roster-table td { padding: 8px; border-bottom: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; text-align: center; vertical-align: middle; }
+.roster-table td:last-child { border-right: none; }
+.roster-table tr:hover td { background: #f8fafc; }
+.roster-table td[contenteditable="true"] { cursor: text; min-width: 80px; }
+.roster-table td[contenteditable="true"]:focus { background: #eef0ff; outline: 2px solid #667eea; outline-offset: -2px; }
+.roster-table td.col-order { font-weight: 700; color: #334155; width: 50px; }
+.roster-table td.col-id { font-weight: 600; color: #1e293b; }
+.roster-table td.col-date { color: #667eea; font-weight: 600; }
+.col-header-group { font-size: 11px; color: #94a3b8; font-weight: 400; display: block; }
+.save-toast { position: fixed; bottom: 24px; right: 24px; background: #16a34a; color: white; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; opacity: 0; transition: opacity 0.3s; }
+.save-toast.show { opacity: 1; }
+.roster-empty { text-align: center; padding: 48px 24px; color: #94a3b8; font-size: 15px; }
+@media (max-width: 768px) {
+  .roster-table { font-size: 12px; }
+  .roster-table th, .roster-table td { padding: 6px 4px; }
+}
+</style>
+</head>
+<body>
+<div class="roster-container">
+  <div class="roster-header">
+    <h1>📋 115年7月至116年2月新生需繳回文件核對表</h1>
+    <div style="display:flex;gap:8px;">
+      <a href="calendar.html" class="btn btn-sm btn-outline">← 回月曆</a>
+    </div>
+  </div>
+  <p style="color:#94a3b8;font-size:13px;margin-bottom:16px;">S_掃描, L_Line 家長, G_歸檔, A_主任檢核</p>
+  <div class="roster-table-wrap">
+    <table class="roster-table" id="rosterTable">
+      <thead>
+        <tr>
+          <th>入園<br>順位</th>
+          <th>學號_<br>姓名</th>
+          <th>入園日期</th>
+          <th>APP</th>
+          <th>MA<br>MA<br>CALL</th>
+          <th>基本資料<span class="col-header-group">(S_掃描 / A_主任檢核)</span></th>
+          <th>緊急<br>聯絡人<br>鍵檔</th>
+          <th>團保<br>回條</th>
+          <th>健康<br>師檢<br>紀錄卡</th>
+          <th>感控<br>通知<br>單</th>
+          <th>契約*2<span class="col-header-group">(S_掃描 / L_Line 家長)</span></th>
+          <th>補助</th>
+          <th>備註</th>
+        </tr>
+      </thead>
+      <tbody id="rosterBody">
+        <tr><td colspan="13" class="roster-empty">載入中...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="save-toast" id="saveToast">已儲存</div>
+
+<script src="js/roster.js"></script>
+</body>
+</html>
