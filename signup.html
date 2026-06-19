@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>活動報名表</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+</head>
+<body>
+<div id="app">
+  <div id="formPage">
+    <div class="form-banner" id="formBanner">
+      <img id="headerImage" src="" alt="header" style="width:100%;display:block;max-height:300px;object-fit:cover;">
+    </div>
+    <div class="form-container">
+      <h1 id="formTitle">活動報名表</h1>
+      <p class="form-desc" id="formDesc">請填寫以下資料完成報名</p>
+
+      <div class="quota-bar" id="quotaBar">
+        <div class="quota-item">
+          <span class="quota-label">總報名人數</span>
+          <span class="quota-count" id="totalQuota">- / -</span>
+        </div>
+        <div class="quota-item" id="sessionQuotaContainer">
+        </div>
+      </div>
+
+      <div id="formClosedMessage" class="closed-message" style="display:none">
+        <div class="closed-icon">📋</div>
+        <h2>報名已截止</h2>
+        <p>感謝您的支持，目前報名人數已額滿。</p>
+      </div>
+
+      <form id="signupForm" onsubmit="return false;">
+        <div class="form-group">
+          <label for="parentName">家長姓名 <span class="required">*</span></label>
+          <input type="text" id="parentName" required placeholder="請輸入家長姓名">
+        </div>
+
+        <div class="form-group">
+          <label for="childName">幼兒姓名 <span class="required">*</span></label>
+          <input type="text" id="childName" required placeholder="請輸入幼兒姓名">
+        </div>
+
+        <div class="form-group">
+          <label for="phone">聯絡電話 <span class="required">*</span></label>
+          <input type="tel" id="phone" required placeholder="請輸入聯絡電話">
+        </div>
+
+        <div class="form-group">
+          <label for="email">電子郵件</label>
+          <input type="email" id="email" placeholder="請輸入電子郵件 (選填)">
+        </div>
+
+        <div class="form-group">
+          <label>選擇場次 <span class="required">*</span></label>
+          <div class="session-options" id="sessionOptions">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="adults">參加大人人數 <span class="required">*</span></label>
+          <select id="adults">
+            <option value="1">1 位</option>
+            <option value="2" selected>2 位</option>
+            <option value="3">3 位</option>
+            <option value="4">4 位</option>
+            <option value="5">5 位</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="notes">備註</label>
+          <textarea id="notes" rows="3" placeholder="其他備註事項 (選填)"></textarea>
+        </div>
+
+        <div id="formError" class="form-error" style="display:none"></div>
+
+        <button type="submit" id="submitBtn" class="btn btn-primary btn-full">送出報名</button>
+      </form>
+
+      <div class="form-footer">
+        <p><a href="admin-reg.html" class="admin-link">管理員登入</a></p>
+      </div>
+    </div>
+  </div>
+
+  <div id="successPage" style="display:none">
+    <div class="form-container">
+      <div class="success-message">
+        <div class="success-icon">✅</div>
+        <h1>報名成功！</h1>
+        <p>您的報名資料已送出，我們將盡快與您聯繫。</p>
+        <button onclick="location.reload()" class="btn btn-primary">返回報名表</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/signup.js"></script>
+</body>
+</html>

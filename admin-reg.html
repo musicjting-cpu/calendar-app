@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>報名表管理後台</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+</head>
+<body>
+<div id="app">
+  <header class="app-header">
+    <div class="header-left">
+      <h1>⚙ 報名表管理</h1>
+      <span class="header-user" id="headerUser"></span>
+    </div>
+    <div class="header-right">
+      <a href="signup.html" class="btn btn-sm btn-outline">檢視報名表</a>
+      <button id="logoutBtn" class="btn btn-sm btn-outline">登出</button>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <div class="admin-tabs">
+      <button class="tab-btn active" data-tab="settings">基本設定</button>
+      <button class="tab-btn" data-tab="sessions">場次管理</button>
+      <button class="tab-btn" data-tab="registrations">報名資料</button>
+    </div>
+
+    <!-- 基本設定 -->
+    <div class="tab-content active" id="tab-settings">
+      <div class="card">
+        <h2>基本設定</h2>
+        <div class="form-group">
+          <label>報名表標題</label>
+          <input type="text" id="editTitle" placeholder="活動報名表">
+        </div>
+        <div class="form-group">
+          <label>報名表說明</label>
+          <textarea id="editDesc" rows="2" placeholder="請填寫以下資料完成報名"></textarea>
+        </div>
+        <div class="form-group">
+          <label>頁首圖片網址</label>
+          <input type="url" id="editHeaderImage" placeholder="https://example.com/banner.jpg">
+          <div class="form-hint">貼上圖片網址即可更換頁首圖，留空則不顯示</div>
+          <div class="header-preview" id="headerPreview">
+            <img id="previewImage" src="" alt="preview" style="max-width:100%;max-height:150px;display:none;">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>總大人人數上限</label>
+          <input type="number" id="editTotalLimit" min="1">
+        </div>
+        <div class="form-group">
+          <label>已報名大人總數</label>
+          <span id="editTotalBooked" class="form-static-value">0</span>
+          <button id="resetTotalBtn" class="btn btn-sm btn-outline" style="margin-left:8px">歸零</button>
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="editFormActive" checked>
+            開放報名
+          </label>
+        </div>
+        <button id="saveSettingsBtn" class="btn btn-primary">儲存設定</button>
+        <span id="settingsSaveMsg" class="save-msg"></span>
+      </div>
+    </div>
+
+    <!-- 場次管理 -->
+    <div class="tab-content" id="tab-sessions">
+      <div class="card">
+        <h2>場次管理</h2>
+        <div id="sessionList"></div>
+        <button id="saveSessionsBtn" class="btn btn-primary">儲存場次設定</button>
+        <span id="sessionsSaveMsg" class="save-msg"></span>
+      </div>
+    </div>
+
+    <!-- 報名資料 -->
+    <div class="tab-content" id="tab-registrations">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <h2 style="margin:0">報名資料</h2>
+          <div>
+            <button id="exportCsvBtn" class="btn btn-sm btn-outline">匯出 CSV</button>
+            <button id="refreshRegBtn" class="btn btn-sm btn-outline">重新整理</button>
+          </div>
+        </div>
+        <div id="registrationsTableWrap" style="overflow-x:auto">
+          <table class="reg-table" id="regTable">
+            <thead>
+              <tr>
+                <th>家長姓名</th>
+                <th>幼兒姓名</th>
+                <th>電話</th>
+                <th>Email</th>
+                <th>場次</th>
+                <th>大人人數</th>
+                <th>備註</th>
+                <th>報名時間</th>
+              </tr>
+            </thead>
+            <tbody id="regBody"></tbody>
+          </table>
+        </div>
+        <p id="regEmpty" class="no-events" style="display:none">尚無報名資料</p>
+        <div id="regLoading" class="loading" style="display:none">載入中...</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="js/admin-reg.js"></script>
+</body>
+</html>
