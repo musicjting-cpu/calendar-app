@@ -13,8 +13,9 @@
 .roster-container { max-width: 100%; margin: 0 auto; padding: 20px; }
 .roster-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .roster-header h1 { font-size: 20px; font-weight: 700; color: #1e293b; }
-.roster-table-wrap { background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); overflow-x: auto; }
+.roster-table-wrap { background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); overflow: auto; max-height: 75vh; }
 .roster-table { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
+.roster-table thead { position: sticky; top: 0; z-index: 10; }
 .roster-table th { background: #f8fafc; padding: 10px 8px; text-align: center; font-weight: 700; color: #475569; border-bottom: 2px solid #e2e8f0; border-right: 1px solid #e2e8f0; }
 .roster-table th:last-child { border-right: none; }
 .roster-table td { padding: 8px; border-bottom: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; text-align: center; vertical-align: middle; }
