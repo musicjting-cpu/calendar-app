@@ -1,14 +1,15 @@
 (function() {
-  var EDITABLE_COLS = ['nameCol','dateCol','app','macall','basicInfo','emergencyContact','insurance','healthRecord','infectionNotice','contract','subsidy','notes'];
   var allStudents = [];
   var rosterStatus = {};
   var saveTimer = null;
   var deletedStack = [];
   var UNDO_TIMEOUT = 10000;
+  var isEditing = false;
+  var unsubscribers = [];
 
   firebase.auth().onAuthStateChanged(function(user) {
     if (!user) { window.location.href = 'login.html'; return; }
-    loadAll();
+    init();
   });
 
   function showToast(msg, undoCallback) {
@@ -29,47 +30,76 @@
     t._hideTimer = setTimeout(function() { t.classList.remove('show'); }, undoCallback ? UNDO_TIMEOUT : 1500);
   }
 
-  async function loadAll() {
-    allStudents = await loadStudentEvents();
+  async function init() {
     rosterStatus = await loadRosterDocs();
-    renderTable();
+    startRealtimeListeners();
   }
 
-  async function loadStudentEvents() {
-    var students = [];
+  function startRealtimeListeners() {
+    unsubscribers.forEach(function(unsub) { unsub(); });
+    unsubscribers = [];
+
     var ranges = [
       {y:2026, mStart:5, mEnd:12},
       {y:2027, mStart:0, mEnd:1}
     ];
+
     for (var ri = 0; ri < ranges.length; ri++) {
       var r = ranges[ri];
       for (var m = r.mStart; m <= r.mEnd; m++) {
         var mStr = String(m + 1).padStart(2,'0');
         var start = r.y + '-' + mStr + '-01';
         var end = r.y + '-' + mStr + '-31';
-        try {
-          var snap = await db.collection('events')
+        (function(start, end) {
+          var unsub = db.collection('events')
             .where('date', '>=', start)
             .where('date', '<=', end)
-            .get();
-          snap.forEach(function(doc) {
-            var d = doc.data();
-            var parsed = parseStudent(d.text);
-            if (parsed) {
-              students.push({
-                id: doc.id,
-                date: d.date,
-                group: parsed.group,
-                studentId: parsed.studentId,
-                name: parsed.name
+            .onSnapshot(function(snap) {
+              snap.docChanges().forEach(function(change) {
+                if (change.type === 'added' || change.type === 'modified') {
+                  handleEventChange(change.doc);
+                } else if (change.type === 'removed') {
+                  handleEventRemoved(change.doc.id);
+                }
               });
-            }
-          });
-        } catch(e) { console.error(e); }
+              rebuildStudentsFromEvents();
+            }, function(err) { console.error('onSnapshot error:', err); });
+          unsubscribers.push(unsub);
+        })(start, end);
       }
     }
+  }
+
+  var eventsMap = {};
+
+  function handleEventChange(doc) {
+    var d = doc.data();
+    var parsed = parseStudent(d.text);
+    if (!parsed) return;
+    eventsMap[doc.id] = {
+      id: doc.id,
+      date: d.date,
+      group: parsed.group,
+      studentId: parsed.studentId,
+      name: parsed.name
+    };
+  }
+
+  function handleEventRemoved(docId) {
+    delete eventsMap[docId];
+  }
+
+  function rebuildStudentsFromEvents() {
+    if (isEditing) return;
+
+    var students = [];
+    var keys = Object.keys(eventsMap);
+    for (var i = 0; i < keys.length; i++) {
+      students.push(eventsMap[keys[i]]);
+    }
     students.sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
-    return students;
+    allStudents = students;
+    renderTable();
   }
 
   function parseStudent(text) {
@@ -158,7 +188,8 @@
     tdName.dataset.field = 'nameCol';
     tdName.textContent = student.group + '_' + student.studentId + student.name;
     tdName.style.whiteSpace = 'pre-line';
-    tdName.addEventListener('blur', handleCellBlur);
+    tdName.addEventListener('focus', function() { isEditing = true; });
+    tdName.addEventListener('blur', function(e) { isEditing = false; handleCellBlur(e); });
     tr.appendChild(tdName);
 
     var tdDate = document.createElement('td');
@@ -166,7 +197,8 @@
     tdDate.contentEditable = 'true';
     tdDate.dataset.field = 'dateCol';
     tdDate.textContent = formatRocDate(student.date);
-    tdDate.addEventListener('blur', handleCellBlur);
+    tdDate.addEventListener('focus', function() { isEditing = true; });
+    tdDate.addEventListener('blur', function(e) { isEditing = false; handleCellBlur(e); });
     tr.appendChild(tdDate);
 
     var editableFields = ['app','macall','basicInfo','emergencyContact','insurance','healthRecord','infectionNotice','contract','subsidy','notes'];
@@ -175,7 +207,8 @@
       td.contentEditable = 'true';
       td.dataset.field = editableFields[ci];
       td.textContent = saved[editableFields[ci]] || '';
-      td.addEventListener('blur', handleCellBlur);
+      td.addEventListener('focus', function() { isEditing = true; });
+      td.addEventListener('blur', function(e) { isEditing = false; handleCellBlur(e); });
       tr.appendChild(td);
     }
 
@@ -278,22 +311,19 @@
   }
 
   async function deleteRow(docId, name) {
-    var tr = document.querySelector('tr[data-docid="' + docId + '"]');
     var idx = allStudents.findIndex(function(s) { return makeDocId(s) === docId; });
     var student = idx >= 0 ? Object.assign({}, allStudents[idx]) : null;
     var savedData = rosterStatus[docId] ? Object.assign({}, rosterStatus[docId]) : null;
+    var removedStatus = rosterStatus[docId] ? Object.assign({}, rosterStatus[docId]) : null;
     var insertIndex = idx >= 0 ? idx : -1;
 
-    if (tr) tr.remove();
     if (idx >= 0) allStudents.splice(idx, 1);
-    var removedStatus = rosterStatus[docId];
     delete rosterStatus[docId];
 
     try {
       await db.collection('roster').doc(docId).delete();
     } catch(e) { console.error(e); }
 
-    renumberRows();
     renderTable();
 
     deletedStack.push({ docId: docId, student: student, savedData: savedData, removedStatus: removedStatus, insertIndex: insertIndex });
@@ -345,14 +375,6 @@
     if (newRow) {
       var nameCell = newRow.querySelector('[data-field="nameCol"]');
       if (nameCell) nameCell.focus();
-    }
-  }
-
-  function renumberRows() {
-    var rows = document.querySelectorAll('#rosterBody tr');
-    for (var i = 0; i < rows.length; i++) {
-      var td = rows[i].querySelector('.col-order');
-      if (td) td.textContent = i + 1;
     }
   }
 
